@@ -13,6 +13,28 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  */
+
+// Constants
+
+private def getColorOpen()       { "#e86d13" }
+private def getColorClose()      { "#00a0dc" }
+private def getStringOpen()      { "open" }
+private def getStringClose()     { "close" }
+private def getStringClosed()    { "closed" }
+private def getStringClosing()   { "closing" }
+private def getStringOpening()   { "opening" }
+private def getStringVoltage()   { "voltage" }
+private def getStringUnknown()   { "unknown" }
+private def getStringRefresh()   { "refresh" }
+private def getStringConfigure() { "configure" }
+private def getStringToggle()    { "toggle" }
+
+private def inputTravelTime(String action) {
+    input "${action}TravelTime", "number",
+          title: "Garage door ${action} travel time in seconds. Only Numbers 5 to 60 allowed.",
+          description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, displayDuringSetup: true
+}
+
 metadata {
     definition (name: "MIMOlite Garage Door Opener", namespace: "sharneng", author: "Kenneth Xu") {
         capability "Actuator"
@@ -30,51 +52,50 @@ metadata {
     }
 
     simulator {
-        status "closed": "command: 9881, payload: 00 66 03 00"
-        status "opening": "command: 9881, payload: 00 66 03 FE"
-        status "open": "command: 9881, payload: 00 66 03 FF"
-        status "closing": "command: 9881, payload: 00 66 03 FC"
-        status "unknown": "command: 9881, payload: 00 66 03 FD"
+        status stringClosed:  "command: 9881, payload: 00 66 03 00"
+        status stringOpening: "command: 9881, payload: 00 66 03 FE"
+        status stringOpen:    "command: 9881, payload: 00 66 03 FF"
+        status stringClosing: "command: 9881, payload: 00 66 03 FC"
+        status stringUnknown: "command: 9881, payload: 00 66 03 FD"
 
         reply "988100660100": "command: 9881, payload: 00 66 03 FC"
         reply "9881006601FF": "command: 9881, payload: 00 66 03 FE"
     }
 
     preferences {
-       input "openTravelTime", "number", title: "Garage door open travel time in seconds. Only Numbers 5 to 60 allowed.", description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, displayDuringSetup: true
-       input "closeTravelTime", "number", title: "Garage door close travel time in seconds. Only Numbers 5 to 60 allowed.", description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, displayDuringSetup: true
-    }    
+        inputTravelTime stringOpen
+        inputTravelTime stringClose
+    }
 
     tiles {
-        standardTile("toggle", "device.door", width: 2, height: 2) {
-            state("unknown", label:'${name}', action:"refresh.refresh", icon:"st.doors.garage.garage-open", backgroundColor:"#ffffff")
-            state("closed", label:'${name}', action:"door control.open", icon:"st.doors.garage.garage-closed", backgroundColor:"#00a0dc", nextState:"opening")
-            state("open", label:'${name}', action:"door control.close", icon:"st.doors.garage.garage-open", backgroundColor:"#e86d13", nextState:"closing")
-            state("opening", label:'${name}', icon:"st.doors.garage.garage-opening", backgroundColor:"#e86d13")
-            state("closing", label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:"#00a0dc")
-            
+        standardTile(stringToggle, "device.door", width: 2, height: 2) {
+            state(stringUnknown, label:'${name}', icon:"st.doors.garage.garage-open",    backgroundColor:"#ffffff",  action:stringRefresh)
+            state(stringClosed,  label:'${name}', icon:"st.doors.garage.garage-closed",  backgroundColor:colorClose, action:stringOpen,  nextState:stringOpening)
+            state(stringOpen,    label:'${name}', icon:"st.doors.garage.garage-open",    backgroundColor:colorOpen,  action:stringClose, nextState:stringClosing)
+            state(stringOpening, label:'${name}', icon:"st.doors.garage.garage-opening", backgroundColor:colorOpen)
+            state(stringClosing, label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:colorClose)
         }
-        standardTile("open", "device.door", inactiveLabel: false) {
-            state "default", label:'open', action:"door control.open", icon:"st.doors.garage.garage-opening", backgroundColor:"#e86d13"
+        standardTile(stringOpen, "device.door", inactiveLabel: false) {
+            state "default", label:stringOpen,  icon:"st.doors.garage.garage-opening", backgroundColor:colorOpen,  action:stringOpen
         }
-        standardTile("close", "device.door", inactiveLabel: false) {
-            state "default", label:'close', action:"door control.close", icon:"st.doors.garage.garage-closing", backgroundColor:"#00a0dc"
+        standardTile(stringClose, "device.door", inactiveLabel: false) {
+            state "default", label:stringClose, icon:"st.doors.garage.garage-closing", backgroundColor:colorClose, action:stringClose
         }
-        standardTile("refresh", "device.door", inactiveLabel: false, decoration: "flat") {
-            state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
+        standardTile(stringRefresh, "device.door", inactiveLabel: false, decoration: "flat") {
+            state "default", label:'',          icon:"st.secondary.refresh", action:stringRefresh
         }
-        valueTile("voltage", "device.voltage") {
+        valueTile(stringVoltage, "device.voltage") {
             state "val", label:'${currentValue}v', unit:"v", defaultState: true , backgroundColors: [
-                [value: 0.0, color: "#00a0dc"],
-                [value: 2.5, color: "#e86d13"]
+                [value: 0.0, color: colorClose],
+                [value: 2.5, color: colorOpen]
             ]
         }
-        standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat") {
-            state "configure", label:'', action:"configuration.configure", icon:"st.secondary.configure"
+        standardTile(stringConfigure, "device.configure", inactiveLabel: false, decoration: "flat") {
+            state stringConfigure, label:'', icon:"st.secondary.configure", action:stringConfigure
         }
 
-        main "toggle"
-        details(["toggle", "open", "close", "refresh", "voltage", "configure",])
+        main stringToggle
+        details([stringToggle, stringOpen, stringClose, stringRefresh, stringVoltage, stringConfigure])
     }
 }
 
@@ -97,7 +118,8 @@ def parse(String description) {
             result = createEvent(descriptionText:description, displayed:false)
         } else {
             result = createEvent(
-                descriptionText: "This device failed to complete the network security key exchange. If you are unable to control it via SmartThings, you must remove it from your network and add it again.",
+                descriptionText: "This device failed to complete the network security key exchange. If you are unable to " +
+                                 "control it via SmartThings, you must remove it from your network and add it again.",
                 eventType: "ALERT",
                 name: "secureInclusion",
                 value: "failed",
@@ -117,23 +139,29 @@ def parse(String description) {
 def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
 {
     log.debug "Got sensorBinaryReport event"
-    def value = cmd.sensorValue ? "open" : "closed";
+    def value = cmd.sensorValue ? stringOpen : stringClosed;
     def result = [createEvent(name: "contact", value: value)]
-    if (!state.doorTraveling || value != "open") result << createEvent(name: "door", value: value)
+    if (!state.doorTraveling || value != stringOpen) result << createEvent(name: "door", value: value)
     result << createEvent(name: "switch", value: cmd.sensorValue ? "on" : "off")
     result
 }
 
-def zwaveEvent (physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd) // sensorMultilevelReport is used to report the value of the analog voltage for SIG1
+// sensorMultilevelReport is used to report the value of the analog voltage for SIG1
+def zwaveEvent (physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
 {
     log.debug "Got SensorMultilevelReport event"
     def ADCvalue = cmd.scaledSensorValue
-    def volt = (((1.5338*(10**-16))*(ADCvalue**5)) - ((1.2630*(10**-12))*(ADCvalue**4)) + ((3.8111*(10**-9))*(ADCvalue**3)) - ((4.7739*(10**-6))*(ADCvalue**2)) + ((2.8558*(10**-3))*(ADCvalue)) - (2.2721*(10**-2)))
-    def result = [createEvent(name: "voltage", value: volt.round(1))]
+    def volt = (((1.5338*(10**-16))*(ADCvalue**5)) -
+               ((1.2630*(10**-12))*(ADCvalue**4)) +
+               ((3.8111*(10**-9))*(ADCvalue**3)) -
+               ((4.7739*(10**-6))*(ADCvalue**2)) +
+               ((2.8558*(10**-3))*(ADCvalue)) -
+               (2.2721*(10**-2)))
+    def result = [createEvent(name: stringVoltage, value: volt.round(1))]
     if (state.doorTraveling) { // poll the voltage every second if door is traveling
         result << response(["delay 1000", zwave.sensorMultilevelV5.sensorMultilevelGet().format()])
     }
-    result   
+    result
 }
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
@@ -142,35 +170,35 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 
 def on() {
     log.debug "Got on command"
-    operateDoor("open")
+    operateDoor(stringOpen)
 }
 
 def off() {
     log.debug "Got off command"
-    operateDoor("close")
+    operateDoor(stringClose)
 }
 
 def open() {
     log.debug "Got open command"
-    operateDoor("open")
+    operateDoor(stringOpen)
 }
 
 def close() {
     log.debug "Got close command"
-    operateDoor("close")
+    operateDoor(stringClose)
 }
 
 private def operateDoor(String op) {
     def travelTime
     def nextState
     def expectedState
-    if (op == "open") {
-        expectedState = "closed"
-        nextState = "opening"
+    if (op == stringOpen) {
+        expectedState = stringClosed
+        nextState = stringOpening
         travelTime = openTravelTime
-    } else if (op == "close") {
-        expectedState = "open"
-        nextState = "closing"
+    } else if (op == stringClose) {
+        expectedState = stringOpen
+        nextState = stringClosing
         travelTime = closeTravelTime
     } else {
         debug.error "Unknow door operation: $op"
@@ -203,13 +231,17 @@ private def setDoorState(String value) {
 
 def configure() {
     log.debug "Got configure command" //setting up to monitor power alarm and actuator duration
-        
+
     delayBetween([
-        zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:[zwaveHubNodeId]).format(), //     FYI: Group 3: If a power dropout occurs, the MIMOlite will send an Alarm Command Class report 
-                                                                                                    //    (if there is enough available residual power)
-        zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:[zwaveHubNodeId]).format(), // periodically send a multilevel sensor report of the ADC analog voltage to the input
-        zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:[zwaveHubNodeId]).format(), // when the input is digitally triggered or untriggered, snd a binary sensor report
-        zwave.configurationV1.configurationSet(configurationValue: [5], parameterNumber: 11, size: 1).format() // set relay to wait 500ms before it cycles again / size should just be 1 (for 1 byte.)
+        // FYI: Group 3: If a power dropout occurs, the MIMOlite will send an Alarm Command Class report
+        // (if there is enough available residual power)
+        zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:[zwaveHubNodeId]).format(),
+        // periodically send a multilevel sensor report of the ADC analog voltage to the input
+        zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:[zwaveHubNodeId]).format(),
+        // when the input is digitally triggered or untriggered, snd a binary sensor report
+        zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:[zwaveHubNodeId]).format(),
+        // set relay to wait 500ms before it cycles again / size should just be 1 (for 1 byte.)
+        zwave.configurationV1.configurationSet(configurationValue: [5], parameterNumber: 11, size: 1).format()
     ])
 }
 
@@ -225,13 +257,16 @@ def refresh() {
     log.debug "Got refresh command"
     doRefresh()
 }
-    
+
 private def doRefresh() {
     state.doorTraveling = false
     delayBetween([
-        //zwave.switchBinaryV1.switchBinaryGet().format(), //requests a report of the relay to make sure that it changed (the report is used elsewhere, look for switchBinaryReport()
-        zwave.sensorMultilevelV5.sensorMultilevelGet().format(), // requests a report of the anologue input voltage
-        zwave.sensorBinaryV1.sensorBinaryGet().format() // request a report of the sensor digital on/off state.
+        // requests a report of the relay to make sure that it changed (the report is used elsewhere, look for switchBinaryReport()
+        //zwave.switchBinaryV1.switchBinaryGet().format(),
+        // requests a report of the anologue input voltage
+        zwave.sensorMultilevelV5.sensorMultilevelGet().format(),
+        // request a report of the sensor digital on/off state.
+        zwave.sensorBinaryV1.sensorBinaryGet().format()
     ])
 }
 
