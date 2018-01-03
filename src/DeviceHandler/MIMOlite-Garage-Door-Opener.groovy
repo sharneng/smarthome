@@ -15,7 +15,6 @@
  */
 
 // Constants
-
 private def getColorOpen()       { "#e86d13" }
 private def getColorClose()      { "#00a0dc" }
 private def getStringOpen()      { "open" }
@@ -52,14 +51,15 @@ metadata {
     }
 
     simulator {
-        status stringClosed:  "command: 9881, payload: 00 66 03 00"
-        status stringOpening: "command: 9881, payload: 00 66 03 FE"
-        status stringOpen:    "command: 9881, payload: 00 66 03 FF"
-        status stringClosing: "command: 9881, payload: 00 66 03 FC"
-        status stringUnknown: "command: 9881, payload: 00 66 03 FD"
+        status "Contact closed":  "command: 3003, payload: 00"
+        status "Contact open":    "command: 3003, payload: FF"
+        status "Voltage 2.5v":    "command: 3105, payload: 02 0A 09 DF"
+        status "Voltage 1.0v":    "command: 3105, payload: 02 0A 05 5F"
+        status "Voltage 0.0v":    "command: 3105, payload: 02 0A 00 13"
 
-        reply "988100660100": "command: 9881, payload: 00 66 03 FC"
-        reply "9881006601FF": "command: 9881, payload: 00 66 03 FE"
+        reply "2001FF, delay 100, 31040000": "command: 3105, payload: 02 0A 00 13" // open/close -> sensorMultilevelGet 0.0v
+        reply "delay 1000, 31040000":        "command: 3105, payload: 02 0A 00 13" // poll sensorMultilevelGet 0.0v
+        reply "31040000, delay 100, 3002":   "command: 3003, payload: 00"     // refresh -> sensor closed
     }
 
     preferences {
@@ -104,11 +104,12 @@ def installed(){
 }
 
 def updated(){
-    log.debug "Updated openTravelTime to ${getTravelTime(openTravelTime)}, closeTravelTime to ${getTravelTime(closeTravelTime)}"
+    log.debug "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
 }
 
-def getTravelTime(int time) {
-    time < 5 ? 5 : (time > 60 ? 60 : time)
+def normalizeTravelTime(Integer time) {
+	def t = (time == null ? 16 : time.value)
+    t < 5 ? 5 : (t > 60 ? 60 : t)
 }
 
 def parse(String description) {
@@ -207,7 +208,7 @@ private def operateDoor(String op) {
     if (device.currentState("door").value == expectedState) {
         setDoorState(nextState)
         state.doorTraveling = true
-        runIn(getTravelTime(travelTime), syncDoorWithContact)
+        runIn(normalizeTravelTime(travelTime), syncDoorWithContact)
         delayBetween([
             zwave.basicV1.basicSet(value: 0xFF).format(), // Tigger the relay switch
             zwave.sensorMultilevelV5.sensorMultilevelGet().format()
@@ -269,4 +270,3 @@ private def doRefresh() {
         zwave.sensorBinaryV1.sensorBinaryGet().format()
     ])
 }
-
