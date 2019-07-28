@@ -45,6 +45,7 @@ metadata {
         capability "Health Check"
         capability "Refresh"
         capability "Sensor"
+        capability "Switch"
         capability "Voltage Measurement"
 
         fingerprint deviceId: "0x1000", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
@@ -144,6 +145,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cm
     def result = [createEvent(name: "contact", value: value)]
     if (!state.doorTraveling || value != stringOpen) result << createEvent(name: "door", value: value)
     result << createEvent(name: "lock", value: cmd.sensorValue ? "unlocked" : "locked")
+    result << createEvent(name: "switch", value: cmd.sensorValue ? "on" : "off")
     result
 }
 
@@ -167,6 +169,16 @@ def zwaveEvent (physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevel
 
 def zwaveEvent(physicalgraph.zwave.Command cmd) {
     createEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
+}
+
+def on() {
+    log.debug "Got on command"
+    operateDoor(stringOpen)
+}
+
+def off() {
+    log.debug "Got off command"
+    operateDoor(stringClose)
 }
 
 def unlock() {
