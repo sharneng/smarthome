@@ -28,8 +28,8 @@ private def getStringRefresh()   { "refresh" }
 private def getStringConfigure() { "configure" }
 private def getStringToggle()    { "toggle" }
 
-private def inputTravelTime(String action) {
-    input "${action}TravelTime", "number",
+private def inputTravelTime(String inputName, String action) {
+    input "${inputName}", "number",
           title: "Garage door ${action} travel time in seconds. Only Numbers 5 to 60 allowed.",
           description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, displayDuringSetup: true
 }
@@ -41,10 +41,10 @@ metadata {
         capability "Contact Sensor"
         capability "Door Control"
         capability "Garage Door Control"
+        capability "Lock"
         capability "Health Check"
         capability "Refresh"
         capability "Sensor"
-        capability "Switch"
         capability "Voltage Measurement"
 
         fingerprint deviceId: "0x1000", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
@@ -63,8 +63,8 @@ metadata {
     }
 
     preferences {
-        inputTravelTime stringOpen
-        inputTravelTime stringClose
+        inputTravelTime "openTravelTime", stringOpen
+        inputTravelTime "closeTravelTime", stringClose
     }
 
     tiles {
@@ -143,7 +143,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cm
     def value = cmd.sensorValue ? stringOpen : stringClosed;
     def result = [createEvent(name: "contact", value: value)]
     if (!state.doorTraveling || value != stringOpen) result << createEvent(name: "door", value: value)
-    result << createEvent(name: "switch", value: cmd.sensorValue ? "on" : "off")
+    result << createEvent(name: "lock", value: cmd.sensorValue ? "unlocked" : "locked")
     result
 }
 
@@ -169,13 +169,13 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
     createEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
 }
 
-def on() {
-    log.debug "Got on command"
+def unlock() {
+    log.debug "Got unlock command"
     operateDoor(stringOpen)
 }
 
-def off() {
-    log.debug "Got off command"
+def lock() {
+    log.debug "Got lock command"
     operateDoor(stringClose)
 }
 
@@ -205,7 +205,10 @@ private def operateDoor(String op) {
         debug.error "Unknow door operation: $op"
         return
     }
-    if (device.currentState("door").value == expectedState) {
+    if (device.currentState("voltage").value == 0.0 && device.currentState("door").value != stringClosed) {
+        log.debug "Inconsistant door state and voltage. Refreshing...";
+        doRefresh();
+    } else if (device.currentState("door").value == expectedState) {
         setDoorState(nextState)
         state.doorTraveling = true
         runIn(normalizeTravelTime(travelTime), syncDoorWithContact)
