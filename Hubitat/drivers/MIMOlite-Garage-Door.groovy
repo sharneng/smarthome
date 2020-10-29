@@ -1,7 +1,7 @@
 /**
  *  MIMOlite Garage Door Opener
  *
- *  Copyright 2018 Kenneth Xu
+ *  Copyright 2018-2020 Kenneth Xu
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -56,7 +56,7 @@ metadata {
         
         fingerprint mfr: "132", deviceId: "0x1000", prod:"1107", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03", deviceJoinName: "MIMOLite Garage Door"
     }
-
+/*
     simulator {
         status "Contact closed":  "command: 3003, payload: 00"
         status "Contact open":    "command: 3003, payload: FF"
@@ -68,7 +68,7 @@ metadata {
         reply "delay 1000, 31040000":        "command: 3105, payload: 02 0A 00 13" // poll sensorMultilevelGet 0.0v
         reply "31040000, delay 100, 3002":   "command: 3003, payload: 00"     // refresh -> sensor closed
     }
-
+*/
     preferences {
         inputTravelTime "openTravelTime", stringOpen
         inputTravelTime "closeTravelTime", stringClose
