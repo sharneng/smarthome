@@ -31,11 +31,12 @@ private def getStringToggle()    { "toggle" }
 private def inputTravelTime(String inputName, String action) {
     input "${inputName}", "number",
           title: "Garage door ${action} travel time in seconds. Only Numbers 5 to 60 allowed.",
-          description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, displayDuringSetup: true
+          description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, range: 5..60
 }
 
 metadata {
-    definition (name: "MIMOlite Garage Door Opener", namespace: "sharneng", author: "Kenneth Xu") {
+    // definition (name: "MIMOlite Garage Door Controller 06/22/2020", namespace: "Hubitat", author: "scgs350", modified: "NoWon", importUrl: "https://raw.githubusercontent.com/NoWon69/mimolite/master/mimolite%20garage%20door%20DH")     {        
+    definition (name: "MIMOlite Garage Door Opener", namespace: "sharneng", author: "Kenneth Xu", importUrl: "https://raw.githubusercontent.com/sharneng/smarthome/master/Hubitat/driver/MIMOlite%20Garage%20Door%20Opener.groovy") {
         capability "Actuator"
         capability "Configuration"
         capability "Contact Sensor"
@@ -45,10 +46,15 @@ metadata {
         capability "Health Check"
         capability "Refresh"
         capability "Sensor"
-        capability "Switch"
-        capability "Voltage Measurement"
+        // capability "Switch"
 
-        fingerprint deviceId: "0x1000", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
+        //fingerprint deviceId: "0x1000", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
+        
+        //attribute "powered", "string"
+     
+        //command "setSwitchDelay",[[title:"momentary switch delay", name:"momentary switch delay 0(disabled),1 sec,2 sec(default),3 sec", type:"NUMBER", description:"momentary switch delay", constraints:["NUMBER"]]]               
+        
+        fingerprint mfr: "132", deviceId: "0x1000", prod:"1107", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03", deviceJoinName: "MIMOLite Garage Door"
     }
 
     simulator {
@@ -67,7 +73,7 @@ metadata {
         inputTravelTime "openTravelTime", stringOpen
         inputTravelTime "closeTravelTime", stringClose
     }
-
+/*
     tiles {
         standardTile(stringToggle, "device.door", width: 2, height: 2) {
             state(stringUnknown, label:'${name}', icon:"st.doors.garage.garage-open",    backgroundColor:"#ffffff",  action:stringRefresh)
@@ -103,13 +109,13 @@ metadata {
 def installed(){
     configure()
 }
-
+*/
 def updated(){
     log.debug "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
 }
 
 def normalizeTravelTime(Integer time) {
-	def t = (time == null ? 16 : time.value)
+    def t = (time == null ? 16 : time.value)
     t < 5 ? 5 : (t > 60 ? 60 : t)
 }
 
@@ -138,7 +144,7 @@ def parse(String description) {
     result
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
+def zwaveEvent(habitat.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
 {
     log.debug "Got sensorBinaryReport event"
     def value = cmd.sensorValue ? stringOpen : stringClosed;
@@ -150,7 +156,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cm
 }
 
 // sensorMultilevelReport is used to report the value of the analog voltage for SIG1
-def zwaveEvent (physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
+def zwaveEvent (habitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
 {
     log.debug "Got SensorMultilevelReport event"
     def ADCvalue = cmd.scaledSensorValue
@@ -167,7 +173,7 @@ def zwaveEvent (physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevel
     result
 }
 
-def zwaveEvent(physicalgraph.zwave.Command cmd) {
+def zwaveEvent(hubitat.zwave.Command cmd) {
     createEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
 }
 
