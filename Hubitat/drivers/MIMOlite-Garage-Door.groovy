@@ -20,11 +20,10 @@ private def getStringClose()     { "close" }
 private def getStringClosed()    { "closed" }
 private def getStringClosing()   { "closing" }
 private def getStringOpening()   { "opening" }
-private def getStringVoltage()   { "voltage" }
 
 private def inputTravelTime(String inputName, String action) {
-    input "${inputName}", "number",
-          title: "Garage door ${action} travel time in seconds.",
+    input inputName, "number",
+          title: "Garage door $action travel time in seconds.",
           description: "Only numbers between 5 to 60 are allowed.", defaultValue: 20, required: false, range: 5..60
 }
 
@@ -65,15 +64,10 @@ void logsOff(){
 def updated(){
     if (txtEnable) {
         log.info "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
-        log.warn "debug logging is: ${logEnable == true}"
-        log.warn "description logging is: ${txtEnable == true}"
+        log.info "debug logging is: $logEnable"
+        log.info "description logging is: $txtEnable"
     }
     if (logEnable) runIn(1800,logsOff)
-}
-
-def normalizeTravelTime(Integer time) {
-    def t = (time == null ? 20 : time.value)
-    t < 5 ? 5 : (t > 60 ? 60 : t)
 }
 
 def parse(String description) {
@@ -116,18 +110,15 @@ def zwaveEvent (hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport
 {
     if (logEnable) log.debug "Got SensorMultilevelReport event"
     def ADCvalue = cmd.scaledSensorValue
-    def volt = (((1.5338*(10**-16))*(ADCvalue**5)) -
+    state.voltage = (((1.5338*(10**-16))*(ADCvalue**5)) -
                ((1.2630*(10**-12))*(ADCvalue**4)) +
                ((3.8111*(10**-9))*(ADCvalue**3)) -
                ((4.7739*(10**-6))*(ADCvalue**2)) +
                ((2.8558*(10**-3))*(ADCvalue)) -
                (2.2721*(10**-2))).round(1)
-    def result = volt != state.previousVolt ? [createEvent(name: stringVoltage, value: volt, displayed: volt)] : [:]
-    state.previousVolt = volt
-    if (state.doorTraveling) { // poll the voltage every second if door is traveling
-        result << response(["delay 1000", secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())])
-    }
-    result
+    state.doorTraveling ? // poll the voltage every second if door is traveling
+        response(["delay 1000", secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())]) :
+        [:]
 }
 
 def zwaveEvent(hubitat.zwave.Command cmd) {
@@ -170,13 +161,16 @@ private def operateDoor(String op) {
         debug.error "Unknow door operation: $op"
         return
     }
-    if (device.currentState("voltage").value == 0.0 && device.currentState("door").value != stringClosed) {
-        if(txtEnable) log.warn "Inconsistant door state and voltage. Refreshing...";
+    def currentDoorState = device.currentValue("door")
+    if (logEnable) log.debug "Operation: $op, currentState: $currentDoorState, expectedState: $expectedState, nextState: $nextState, state: $state" +  
+        ", voltage: " + state.voltage + ", doorTraveling: " + state.doorTraveling
+    if (state.voltage == 0.0 && currentDoorState != stringClosed) {
+        if(txtEnable) log.warn "Inconsistant door state and voltage. Refreshing..."
         doRefresh();
-    } else if (device.currentState("door").value == expectedState) {
+    } else if (currentDoorState == expectedState) {
         setDoorState(nextState)
         state.doorTraveling = true
-        runIn(normalizeTravelTime(travelTime), syncDoorWithContact)
+        runIn(travelTime, syncDoorWithContact)
         delayBetween([
             secureCmd(zwave.basicV1.basicSet(value: 0xFF)), // Trigger the relay switch
             secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())
@@ -187,9 +181,9 @@ private def operateDoor(String op) {
 }
 
 def syncDoorWithContact() {
-    if (txtEnable) log.warn "Door travel timout. Updating door state with contact state"
+    if (logEnable) log.debug "Door travel timout. Updating door state with contact state"
     state.doorTraveling = false
-    setDoorState(device.currentState("contact").value)
+    setDoorState(device.currentValue("contact"))
 }
 
 private def setDoorState(String value) {
@@ -230,7 +224,7 @@ def refresh() {
 
 private def doRefresh() {
     state.doorTraveling = false
-    state.previousVolt = null
+    state.voltage = null
     delayBetween([
         // requests a report of the anologue input voltage
         secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet()),
