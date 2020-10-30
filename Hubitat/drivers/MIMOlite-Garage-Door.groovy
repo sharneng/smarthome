@@ -15,28 +15,22 @@
  */
 
 // Constants
-private def getColorOpen()       { "#e86d13" }
-private def getColorClose()      { "#00a0dc" }
 private def getStringOpen()      { "open" }
 private def getStringClose()     { "close" }
 private def getStringClosed()    { "closed" }
 private def getStringClosing()   { "closing" }
 private def getStringOpening()   { "opening" }
 private def getStringVoltage()   { "voltage" }
-private def getStringUnknown()   { "unknown" }
-private def getStringRefresh()   { "refresh" }
-private def getStringConfigure() { "configure" }
-private def getStringToggle()    { "toggle" }
 
 private def inputTravelTime(String inputName, String action) {
     input "${inputName}", "number",
-          title: "Garage door ${action} travel time in seconds. Only Numbers 5 to 60 allowed.",
-          description: "Numbers 5 to 60 allowed.", defaultValue: 16, required: false, range: 5..60
+          title: "Garage door ${action} travel time in seconds.",
+          description: "Only numbers between 5 to 60 are allowed.", defaultValue: 20, required: false, range: 5..60
 }
 
 metadata {
-    // definition (name: "MIMOlite Garage Door Controller 06/22/2020", namespace: "Hubitat", author: "scgs350", modified: "NoWon", importUrl: "https://raw.githubusercontent.com/NoWon69/mimolite/master/mimolite%20garage%20door%20DH")     {        
-    definition (name: "MIMOlite Garage Door Opener", namespace: "sharneng", author: "Kenneth Xu", importUrl: "https://raw.githubusercontent.com/sharneng/smarthome/master/Hubitat/driver/MIMOlite%20Garage%20Door%20Opener.groovy") {
+    definition (name: "MIMOlite Garage Door Opener", namespace: "sharneng", author: "Kenneth Xu", 
+                importUrl: "https://raw.githubusercontent.com/sharneng/smarthome/master/Hubitat/driver/MIMOlite-Garage-Door-Opener.groovy") {
         capability "Actuator"
         capability "Configuration"
         capability "Contact Sensor"
@@ -46,76 +40,39 @@ metadata {
         capability "Health Check"
         capability "Refresh"
         capability "Sensor"
-        // capability "Switch"
 
-        //fingerprint deviceId: "0x1000", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
-        
-        //attribute "powered", "string"
-     
-        //command "setSwitchDelay",[[title:"momentary switch delay", name:"momentary switch delay 0(disabled),1 sec,2 sec(default),3 sec", type:"NUMBER", description:"momentary switch delay", constraints:["NUMBER"]]]               
-        
-        fingerprint mfr: "132", deviceId: "0x1000", prod:"1107", inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03", deviceJoinName: "MIMOLite Garage Door"
+        fingerprint mfr: "132", deviceId: "0x1000", prod:"1107", deviceJoinName: "MIMOLite Garage Door", 
+            inClusters: "0x72,0x86,0x71,0x30,0x31,0x35,0x70,0x85,0x25,0x03"
     }
-/*
-    simulator {
-        status "Contact closed":  "command: 3003, payload: 00"
-        status "Contact open":    "command: 3003, payload: FF"
-        status "Voltage 2.5v":    "command: 3105, payload: 02 0A 09 DF"
-        status "Voltage 1.0v":    "command: 3105, payload: 02 0A 05 5F"
-        status "Voltage 0.0v":    "command: 3105, payload: 02 0A 00 13"
 
-        reply "2001FF, delay 100, 31040000": "command: 3105, payload: 02 0A 00 13" // open/close -> sensorMultilevelGet 0.0v
-        reply "delay 1000, 31040000":        "command: 3105, payload: 02 0A 00 13" // poll sensorMultilevelGet 0.0v
-        reply "31040000, delay 100, 3002":   "command: 3003, payload: 00"     // refresh -> sensor closed
-    }
-*/
     preferences {
         inputTravelTime "openTravelTime", stringOpen
         inputTravelTime "closeTravelTime", stringClose
-    }
-/*
-    tiles {
-        standardTile(stringToggle, "device.door", width: 2, height: 2) {
-            state(stringUnknown, label:'${name}', icon:"st.doors.garage.garage-open",    backgroundColor:"#ffffff",  action:stringRefresh)
-            state(stringClosed,  label:'${name}', icon:"st.doors.garage.garage-closed",  backgroundColor:colorClose, action:stringOpen,  nextState:stringOpening)
-            state(stringOpen,    label:'${name}', icon:"st.doors.garage.garage-open",    backgroundColor:colorOpen,  action:stringClose, nextState:stringClosing)
-            state(stringOpening, label:'${name}', icon:"st.doors.garage.garage-opening", backgroundColor:colorOpen)
-            state(stringClosing, label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:colorClose)
-        }
-        standardTile(stringOpen, "device.door", inactiveLabel: false) {
-            state "default", label:stringOpen,  icon:"st.doors.garage.garage-opening", backgroundColor:colorOpen,  action:stringOpen
-        }
-        standardTile(stringClose, "device.door", inactiveLabel: false) {
-            state "default", label:stringClose, icon:"st.doors.garage.garage-closing", backgroundColor:colorClose, action:stringClose
-        }
-        standardTile(stringRefresh, "device.door", inactiveLabel: false, decoration: "flat") {
-            state "default", label:'',          icon:"st.secondary.refresh", action:stringRefresh
-        }
-        valueTile(stringVoltage, "device.voltage") {
-            state "val", label:'${currentValue}v', unit:"v", defaultState: true , backgroundColors: [
-                [value: 0.0, color: colorClose],
-                [value: 2.5, color: colorOpen]
-            ]
-        }
-        standardTile(stringConfigure, "device.configure", inactiveLabel: false, decoration: "flat") {
-            state stringConfigure, label:'', icon:"st.secondary.configure", action:stringConfigure
-        }
-
-        main stringToggle
-        details([stringToggle, stringOpen, stringClose, stringRefresh, stringVoltage, stringConfigure])
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: false
+        input name: "txtEnable", type: "bool", title: "Enable descriptionText logging", defaultValue: false
     }
 }
 
 def installed(){
     configure()
 }
-*/
+
+void logsOff(){
+    if (txtEnable) log.info "debug logging disabled..."
+    device.updateSetting("logEnable",[value:"false",type:"bool"])
+}
+
 def updated(){
-    log.debug "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
+    if (txtEnable) {
+        log.info "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
+        log.warn "debug logging is: ${logEnable == true}"
+        log.warn "description logging is: ${txtEnable == true}"
+    }
+    if (logEnable) runIn(1800,logsOff)
 }
 
 def normalizeTravelTime(Integer time) {
-    def t = (time == null ? 16 : time.value)
+    def t = (time == null ? 20 : time.value)
     t < 5 ? 5 : (t > 60 ? 60 : t)
 }
 
@@ -140,35 +97,35 @@ def parse(String description) {
             result = zwaveEvent(cmd)
         }
     }
-    log.debug "\"$description\" parsed to ${result.inspect()}"
+    if (logEnable) log.debug "\"$description\" parsed to ${result.inspect()}"
     result
 }
 
-def zwaveEvent(habitat.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
+def zwaveEvent(hubitat.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
 {
-    log.debug "Got sensorBinaryReport event"
+    if (logEnable) log.debug "Got sensorBinaryReport event"
     def value = cmd.sensorValue ? stringOpen : stringClosed;
     def result = [createEvent(name: "contact", value: value)]
     if (!state.doorTraveling || value != stringOpen) result << createEvent(name: "door", value: value)
     result << createEvent(name: "lock", value: cmd.sensorValue ? "unlocked" : "locked")
-    result << createEvent(name: "switch", value: cmd.sensorValue ? "on" : "off")
     result
 }
 
 // sensorMultilevelReport is used to report the value of the analog voltage for SIG1
-def zwaveEvent (habitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
+def zwaveEvent (hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
 {
-    log.debug "Got SensorMultilevelReport event"
+    if (logEnable) log.debug "Got SensorMultilevelReport event"
     def ADCvalue = cmd.scaledSensorValue
     def volt = (((1.5338*(10**-16))*(ADCvalue**5)) -
                ((1.2630*(10**-12))*(ADCvalue**4)) +
                ((3.8111*(10**-9))*(ADCvalue**3)) -
                ((4.7739*(10**-6))*(ADCvalue**2)) +
                ((2.8558*(10**-3))*(ADCvalue)) -
-               (2.2721*(10**-2)))
-    def result = [createEvent(name: stringVoltage, value: volt.round(1))]
+               (2.2721*(10**-2))).round(1)
+    def result = volt != state.previousVolt ? [createEvent(name: stringVoltage, value: volt, displayed: volt)] : [:]
+    state.previousVolt = volt
     if (state.doorTraveling) { // poll the voltage every second if door is traveling
-        result << response(["delay 1000", zwave.sensorMultilevelV5.sensorMultilevelGet().format()])
+        result << response(["delay 1000", secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())])
     }
     result
 }
@@ -177,33 +134,23 @@ def zwaveEvent(hubitat.zwave.Command cmd) {
     createEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
 }
 
-def on() {
-    log.debug "Got on command"
-    operateDoor(stringOpen)
-}
-
-def off() {
-    log.debug "Got off command"
-    operateDoor(stringClose)
-}
-
 def unlock() {
-    log.debug "Got unlock command"
+    if (logEnable) log.debug "Got unlock command"
     operateDoor(stringOpen)
 }
 
 def lock() {
-    log.debug "Got lock command"
+    if (logEnable) log.debug "Got lock command"
     operateDoor(stringClose)
 }
 
 def open() {
-    log.debug "Got open command"
+    if (logEnable) log.debug "Got open command"
     operateDoor(stringOpen)
 }
 
 def close() {
-    log.debug "Got close command"
+    if (logEnable) log.debug "Got close command"
     operateDoor(stringClose)
 }
 
@@ -224,70 +171,78 @@ private def operateDoor(String op) {
         return
     }
     if (device.currentState("voltage").value == 0.0 && device.currentState("door").value != stringClosed) {
-        log.debug "Inconsistant door state and voltage. Refreshing...";
+        if(txtEnable) log.warn "Inconsistant door state and voltage. Refreshing...";
         doRefresh();
     } else if (device.currentState("door").value == expectedState) {
         setDoorState(nextState)
         state.doorTraveling = true
         runIn(normalizeTravelTime(travelTime), syncDoorWithContact)
         delayBetween([
-            zwave.basicV1.basicSet(value: 0xFF).format(), // Tigger the relay switch
-            zwave.sensorMultilevelV5.sensorMultilevelGet().format()
-        ])
+            secureCmd(zwave.basicV1.basicSet(value: 0xFF)), // Trigger the relay switch
+            secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())
+        ], 200)
     } else {
-        log.debug "Door is not in $expectedState state. Will not take action. Please try to refresh."
+        if (txtEnable) log.warn "Door is not in $expectedState state. Will not take action. Please try to refresh."
     }
 }
 
 def syncDoorWithContact() {
-    log.debug "Door travel timout. Updating door state with contact state"
+    if (txtEnable) log.warn "Door travel timout. Updating door state with contact state"
     state.doorTraveling = false
     setDoorState(device.currentState("contact").value)
 }
 
 private def setDoorState(String value) {
     def event = createEvent(name: "door", value: value)
-    log.debug "sending event: $event"
+    if (logEnable) log.debug "sending event: $event"
     sendEvent(event)
 }
 
 def configure() {
-    log.debug "Got configure command" //setting up to monitor power alarm and actuator duration
-
+    if(logEnable) log.debug "Got configure command" 
+    runIn(1800,logsOff)
+    //setting up to monitor power alarm and actuator duration
     delayBetween([
         // FYI: Group 3: If a power dropout occurs, the MIMOlite will send an Alarm Command Class report
         // (if there is enough available residual power)
-        zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:[zwaveHubNodeId]).format(),
+        secureCmd(zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:[zwaveHubNodeId])),
         // periodically send a multilevel sensor report of the ADC analog voltage to the input
-        zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:[zwaveHubNodeId]).format(),
-        // when the input is digitally triggered or untriggered, snd a binary sensor report
-        zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:[zwaveHubNodeId]).format(),
+        secureCmd(zwave.associationV1.associationSet(groupingIdentifier:2, nodeId:[zwaveHubNodeId])),
+        // when the input is digitally triggered or untriggered, send a binary sensor report
+        secureCmd(zwave.associationV1.associationSet(groupingIdentifier:4, nodeId:[zwaveHubNodeId])),
         // set relay to wait 500ms before it cycles again / size should just be 1 (for 1 byte.)
-        zwave.configurationV1.configurationSet(configurationValue: [5], parameterNumber: 11, size: 1).format()
-    ])
+        secureCmd(zwave.configurationV1.configurationSet(configurationValue: [5], parameterNumber: 11, size: 1))
+    ], 200)
 }
 
 /**
  * PING is used by Device-Watch in attempt to reach the Device
  */
 def ping() {
-    log.debug "Got ping command"
+    if (logEnable) log.debug "Got ping command"
     doRefresh()
 }
 
 def refresh() {
-    log.debug "Got refresh command"
+    if (logEnable) log.debug "Got refresh command"
     doRefresh()
 }
 
 private def doRefresh() {
     state.doorTraveling = false
+    state.previousVolt = null
     delayBetween([
-        // requests a report of the relay to make sure that it changed (the report is used elsewhere, look for switchBinaryReport()
-        //zwave.switchBinaryV1.switchBinaryGet().format(),
         // requests a report of the anologue input voltage
-        zwave.sensorMultilevelV5.sensorMultilevelGet().format(),
+        secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet()),
         // request a report of the sensor digital on/off state.
-        zwave.sensorBinaryV1.sensorBinaryGet().format()
-    ])
+        secureCmd(zwave.sensorBinaryV1.sensorBinaryGet())
+    ], 200)
+}
+
+private secureCmd(cmd) {
+    if (getDataValue("zwaveSecurePairingComplete") == "true") {
+        return zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
+    } else {
+        return cmd.format()
+    }	
 }
