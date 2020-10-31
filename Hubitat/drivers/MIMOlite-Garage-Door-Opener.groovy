@@ -52,62 +52,57 @@ metadata {
     }
 }
 
-def installed(){
+def installed() {
     configure()
 }
 
-void logsOff(){
-    if (txtEnable) log.info "debug logging disabled..."
+void logsOff() {
+    if (logEnable) log.info "debug logging disabled..."
     device.updateSetting("logEnable",[value:"false",type:"bool"])
 }
 
-def updated(){
-    if (txtEnable) {
-        log.info "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
-        log.info "debug logging is: $logEnable"
-        log.info "description logging is: $txtEnable"
-    }
+def updated() {
+    log.info "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
+    log.info "debug logging is: $logEnable"
+    log.info "description logging is: $txtEnable"
     if (logEnable) runIn(1800,logsOff)
 }
 
 def parse(String description) {
+    if (logEnable) log.debug "parse: $description"
     def result = null
     if (description.startsWith("Err")) {
-        if (state.sec) {
-            result = createEvent(descriptionText:description, displayed:false)
-        } else {
-            result = createEvent(
+        result = state.sec ?
+            buildEvent(descriptionText:description, displayed:false) :
+            buildEvent(name: "secureInclusion", value: "failed", type: "ALERT", displayed: true,
                 descriptionText: "This device failed to complete the network security key exchange. If you are unable to " +
-                                 "control it via SmartThings, you must remove it from your network and add it again.",
-                eventType: "ALERT",
-                name: "secureInclusion",
-                value: "failed",
-                displayed: true,
-            )
-        }
+                                 "control it via Hubitat, you must remove it from your network and add it again.")
     } else {
         def cmd = zwave.parse(description, [0x20: 1, 0x84: 1, 0x30: 1, 0x70: 1, 0x31: 5])
         if (cmd) {
             result = zwaveEvent(cmd)
         }
     }
-    if (logEnable) log.debug "\"$description\" parsed to ${result.inspect()}"
+    if (logEnable) log.debug "parsed to ${result.inspect()}"
     result
 }
 
-def zwaveEvent(hubitat.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd)
-{
+def zwaveEvent(hubitat.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd) {
     if (logEnable) log.debug "Got sensorBinaryReport event"
     def value = cmd.sensorValue ? stringOpen : stringClosed;
-    def result = [createEvent(name: "contact", value: value)]
-    if (!state.doorTraveling || value != stringOpen) result << createEvent(name: "door", value: value)
-    result << createEvent(name: "lock", value: cmd.sensorValue ? "unlocked" : "locked")
+    
+    def type = null;
+    if (state.doorTraveling == null) state.doorTraveling = false
+    else type = state.doorTraveling ? "digital" : "physical"
+    
+    def result = [buildEvent(name: "contact", value: value, type: type)]
+    if (!state.doorTraveling || value != stringOpen) result << buildEvent(name: "door", value: value, type: type)
+    result << buildEvent(name: "lock", value: cmd.sensorValue ? "unlocked" : "locked", type: type)
     result
 }
 
 // sensorMultilevelReport is used to report the value of the analog voltage for SIG1
-def zwaveEvent (hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
-{
+def zwaveEvent (hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd) {
     if (logEnable) log.debug "Got SensorMultilevelReport event"
     def ADCvalue = cmd.scaledSensorValue
     state.voltage = (((1.5338*(10**-16))*(ADCvalue**5)) -
@@ -122,7 +117,7 @@ def zwaveEvent (hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport
 }
 
 def zwaveEvent(hubitat.zwave.Command cmd) {
-    createEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
+    buildEvent(displayed: false, descriptionText: "$device.displayName: $cmd")
 }
 
 def unlock() {
@@ -162,13 +157,12 @@ private def operateDoor(String op) {
         return
     }
     def currentDoorState = device.currentValue("door")
-    if (logEnable) log.debug "Operation: $op, currentState: $currentDoorState, expectedState: $expectedState, nextState: $nextState, state: $state" +  
-        ", voltage: " + state.voltage + ", doorTraveling: " + state.doorTraveling
+    if (logEnable) log.debug "expectedState: $expectedState, nextState: $nextState. $state"
     if (state.voltage == 0.0 && currentDoorState != stringClosed) {
-        if(txtEnable) log.warn "Inconsistant door state and voltage. Refreshing..."
+        log.warn "Inconsistant door state and voltage. Refreshing..."
         doRefresh();
     } else if (currentDoorState == expectedState) {
-        setDoorState(nextState)
+        sendEvent(buildEvent(name: "door", value: nextState, type: "digital"))
         state.doorTraveling = true
         runIn(travelTime, syncDoorWithContact)
         delayBetween([
@@ -176,20 +170,23 @@ private def operateDoor(String op) {
             secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet())
         ], 200)
     } else {
-        if (txtEnable) log.warn "Door is not in $expectedState state. Will not take action. Please try to refresh."
+        log.warn "Door is not in $expectedState state. Will not take action. Please try to refresh."
     }
 }
 
 def syncDoorWithContact() {
-    if (logEnable) log.debug "Door travel timout. Updating door state with contact state"
     state.doorTraveling = false
-    setDoorState(device.currentValue("contact"))
+    if (device.currentValue("contact") != device.currentValue("door")) {
+        if (logEnable) log.debug "Door travel timout. Updating door state with contact state"
+        sendEvent(buildEvent(name: "door", value: device.currentValue("contact"), type: "digital"))
+    }
 }
 
-private def setDoorState(String value) {
-    def event = createEvent(name: "door", value: value)
-    if (logEnable) log.debug "sending event: $event"
-    sendEvent(event)
+private Map buildEvent(Map properties) {
+    def text = properties.descriptionText
+    if (text == null) properties.descriptionText = text = "$device.displayName $properties.name is $properties.value"
+    if (txtEnable) log.info "Event: $text"
+    properties
 }
 
 def configure() {
@@ -223,8 +220,7 @@ def refresh() {
 }
 
 private def doRefresh() {
-    state.doorTraveling = false
-    state.voltage = null
+    state.clear()
     delayBetween([
         // requests a report of the anologue input voltage
         secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet()),
