@@ -53,7 +53,8 @@ metadata {
 }
 
 def installed() {
-    configure()
+    if (logEnable) log.debug "Got installed command" 
+    doConfigure()
 }
 
 void logsOff() {
@@ -190,10 +191,14 @@ private Map buildEvent(Map properties) {
 }
 
 def configure() {
-    if(logEnable) log.debug "Got configure command" 
+    if (logEnable) log.debug "Got configure command" 
+    doConfigure()
+}
+
+private def doConfigure() {
     runIn(1800,logsOff)
     //setting up to monitor power alarm and actuator duration
-    delayBetween([
+    def result = delayBetween([
         // FYI: Group 3: If a power dropout occurs, the MIMOlite will send an Alarm Command Class report
         // (if there is enough available residual power)
         secureCmd(zwave.associationV1.associationSet(groupingIdentifier:3, nodeId:[zwaveHubNodeId])),
@@ -204,6 +209,8 @@ def configure() {
         // set relay to wait 500ms before it cycles again / size should just be 1 (for 1 byte.)
         secureCmd(zwave.configurationV1.configurationSet(configurationValue: [5], parameterNumber: 11, size: 1))
     ], 200)
+    if (logEnable) log.debug("configure: $result")
+    result
 }
 
 /**
@@ -221,12 +228,14 @@ def refresh() {
 
 private def doRefresh() {
     state.clear()
-    delayBetween([
+    def result = delayBetween([
         // requests a report of the anologue input voltage
         secureCmd(zwave.sensorMultilevelV5.sensorMultilevelGet()),
         // request a report of the sensor digital on/off state.
         secureCmd(zwave.sensorBinaryV1.sensorBinaryGet())
     ], 200)
+    if (logEnable) log.debug "refresh: $result"
+    result
 }
 
 private secureCmd(cmd) {
