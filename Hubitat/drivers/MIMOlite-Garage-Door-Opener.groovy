@@ -63,7 +63,7 @@ void logsOff() {
 }
 
 def updated() {
-    log.info "Updated openTravelTime to ${normalizeTravelTime(openTravelTime)}, closeTravelTime to ${normalizeTravelTime(closeTravelTime)}"
+    log.info "Updated openTravelTime to $openTravelTime, closeTravelTime to $closeTravelTime"
     log.info "debug logging is: $logEnable"
     log.info "description logging is: $txtEnable"
     if (logEnable) runIn(1800,logsOff)
