@@ -1077,10 +1077,12 @@ def zwaveEvent(hubitat.zwave.Command cmd) {
  * Executes lock and then check command with a delay on a lock
  */
 def lockAndCheck(doorLockMode) {
-	secureSequence([
+	cmds = secureSequence([
 			zwave.doorLockV1.doorLockOperationSet(doorLockMode: doorLockMode),
 			zwave.doorLockV1.doorLockOperationGet()
-	], 4200)
+	], 6000)
+	log.debug "sending ${cmds.inspect()}"
+	cmds
 }
 
 /**
@@ -1152,7 +1154,7 @@ def refresh() {
 		state.associationQuery = now()
 	}
 	state.lastLockDetailsQuery = now()
-
+	log.debug "refresh is sending ${cmds.inspect()}"
 	cmds
 }
 
@@ -1657,7 +1659,8 @@ def getSchlageLockParam() {
  * @return true if the lock manufacturer is Schlage, else false
  */
 def isSchlageLock() {
-	/*if ("003B" == zwaveInfo.mfr) {
+	/* TODO: fix this for Schlage lock
+	if ("003B" == zwaveInfo.mfr) {
 		if("Schlage" != getDataValue("manufacturer")) {
 			updateDataValue("manufacturer", "Schlage")
 		}
@@ -1672,7 +1675,8 @@ def isSchlageLock() {
  * @return true if the lock manufacturer is Kwikset, else false
  */
 def isKwiksetLock() {
-	/*if ("0090" == zwaveInfo.mfr) {
+	/* TODO fix this to work for Kwikset lock
+	if ("0090" == zwaveInfo.mfr) {
 		if("Kwikset" != getDataValue("manufacturer")) {
 			updateDataValue("manufacturer", "Kwikset")
 		}
@@ -1687,7 +1691,8 @@ def isKwiksetLock() {
  * @return true if the lock manufacturer is Yale, else false
  */
 def isYaleLock() {
-	/*if ("0129" == zwaveInfo.mfr) {
+	/* TODO fix this to work for Yale lock
+	if ("0129" == zwaveInfo.mfr) {
 		if("Yale" != getDataValue("manufacturer")) {
 			updateDataValue("manufacturer", "Yale")
 		}
@@ -1702,7 +1707,7 @@ def isYaleLock() {
  * @return true if the lock manufacturer is KeyWe, else false
  */
 private isKeyweLock() {
-    /*
+	/* TODO fix this to work for Keywe Lock
 	if ("037B" == zwaveInfo.mfr) {
 		if ("Keywe" != getDataValue("manufacturer")) {
 			updateDataValue("manufacturer", "Keywe")
